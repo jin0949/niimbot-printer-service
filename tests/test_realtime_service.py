@@ -1,8 +1,8 @@
 import pytest
 import logging
 
-from src.config import DATABASE_URL, JWT
-from src.realtime_service import RealtimeService
+from src.supa_realtime.config import DATABASE_URL, JWT
+from src.supa_realtime.realtime_service import RealtimeService
 
 
 @pytest.mark.asyncio
