@@ -49,17 +49,29 @@ class NiimbotPrint:
             logging.error(f"Failed to initialize printer: {str(e)}")
             raise RuntimeError(f"Printer initialization failed: {str(e)}") from e
 
-    def print_image(self, image: Image):
-        self.start_print()
-        # self.allow_print_clear()  # Something unsupported in protocol decoding (B21)
-        self.start_page_print()
-        self.set_dimension(image.height, image.width)
-        self.send_image(image)
+    def print_image(self, image: Image.Image):
+        try:
+            # 프린트 시작
+            assert self.start_print(), "Failed to start print"
+            assert self.allow_print_clear(), "Failed to allow print clear"
+            assert self.start_page_print(), "Failed to start page print"
 
-        self.end_page_print()
-        time.sleep(0.3)  # FIXME: Check get_print_status()
-        while not self.end_print():
-            time.sleep(0.1)
+            # 이미지 설정 및 전송
+            assert self.set_dimension(image.height, image.width), "Failed to set dimensions"
+            self.receive_image(image)
+
+            # 프린트 종료
+            assert self.end_page_print(), "Failed to end page print"
+
+            # 프린트 완료 대기
+            while (status := self.get_print_status()) and status['progress1'] != 100:
+                time.sleep(0.1)
+
+            assert self.end_print(), "Failed to end print"
+
+        except Exception as e:
+            logging.error(f"Print failed: {str(e)}")
+            raise RuntimeError(f"Print failed: {str(e)}") from e
 
     def _recv(self):
         packets = []
@@ -176,7 +188,7 @@ class NiimbotPrint:
             "rfidreadstate": rfidreadstate,
         }
 
-    def send_image(self, image: Image):
+    def receive_image(self, image: Image):
         for pkt in _encode_image(image):
             self._send(pkt)
 
