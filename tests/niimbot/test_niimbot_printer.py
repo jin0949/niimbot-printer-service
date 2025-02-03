@@ -95,7 +95,7 @@ def test_print(printer):
         assert printer.allow_print_clear(), "Failed to allow print clear"
         assert printer.start_page_print(), "Failed to start page print"
         assert printer.set_dimension(height, width), "Failed to set dimensions"
-        printer.send_image(img)
+        printer.receive_image(img)
         assert printer.end_page_print(), "Failed to end page print"
 
         while (status := printer.get_print_status()) and status['progress1'] != percentage:
