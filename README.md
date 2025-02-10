@@ -40,6 +40,12 @@
 python main.py
 ```
 
+pillow 종속성 설치
+```bash
+sudo apt-get update
+sudo apt-get install -y libopenjp2-7 python3-pil libjpeg-dev zlib1g-dev
+```
+
 ## 프로세스 흐름
 
 1. 데이터베이스 변경 감지
