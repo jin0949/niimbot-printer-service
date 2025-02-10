@@ -1,5 +1,6 @@
 import logging
 import math
+import os
 import struct
 import time
 
@@ -42,6 +43,13 @@ class NiimbotPrint:
 
             assert self.set_label_density(density), "Failed to set label density"
             assert self.set_label_type(label_type), "Failed to set label type"
+
+            image_path = os.path.join(os.path.dirname(__file__), 'sample.png')
+            self.sample_image = Image.open(image_path)
+
+            # 연결 시 첫 출력 안되는 버그 있어서 초기화 할때 2장 출력
+            for i in range(2):
+                self.print_image(image=self.sample_image)
 
             logging.info("Printer initialized successfully")
 
