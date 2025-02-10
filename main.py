@@ -5,6 +5,7 @@ import json
 from setproctitle import setproctitle
 
 from src.niimbot.niimbot_printer import NiimbotPrint
+from src.niimbot.serial_transport import SerialTransport
 from src.qr_generator.layout import ImageLayout
 from src.supa_db.supa_db import SupaDB
 from src.supa_realtime.config import DATABASE_URL, JWT
@@ -12,10 +13,10 @@ from src.supa_realtime.realtime_service import RealtimeService
 
 
 class LaundryHandler:
-    def __init__(self):
+    def __init__(self, transport: SerialTransport):
         self.supa_api = SupaDB()
         self.service = RealtimeService(DATABASE_URL, JWT, self.handle_change)
-        self.label_printer = NiimbotPrint(port="/dev/ttyACM0")
+        self.label_printer = NiimbotPrint(transport=transport)
 
 
     async def handle_change(self, payload):
@@ -44,7 +45,11 @@ class LaundryHandler:
 async def main():
     setproctitle("printer-service")
     logging.basicConfig(level=logging.INFO)
-    handler = LaundryHandler()
+
+    port = "/dev/ttyACM0"
+    # port = "COM4"
+    transport = SerialTransport(port=port)
+    handler = LaundryHandler(transport)
     await handler.start()
 
 
