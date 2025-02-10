@@ -1,5 +1,7 @@
 import asyncio
 import logging
+from logging.handlers import TimedRotatingFileHandler
+import os
 import json
 from setproctitle import setproctitle
 
@@ -9,6 +11,35 @@ from src.qr_generator.layout import ImageLayout
 from src.supa_db.supa_db import SupaDB
 from src.supa_realtime.config import DATABASE_URL, JWT
 from src.supa_realtime.realtime_service import RealtimeService
+
+
+def setup_logger():
+    log_dir = 'logs'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    log_file = os.path.join(log_dir, 'printer-service.log')
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    file_handler = TimedRotatingFileHandler(
+        filename=log_file,
+        when='midnight',
+        interval=1,
+        backupCount=7,
+        encoding='utf-8'
+    )
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 
 
 class LaundryHandler:
@@ -43,22 +74,28 @@ class LaundryHandler:
 
 async def main():
     setproctitle("printer-service")
-    logging.basicConfig(level=logging.INFO)
+    setup_logger()  # 로깅 설정 추가
 
-    # Initialize components
-    port = "/dev/ttyACM0"
-    transport = SerialTransport(port=port)
-    printer = NiimbotPrint(transport=transport)
-    supa_api = SupaDB(DATABASE_URL, JWT)
-    service = RealtimeService(DATABASE_URL, JWT)
+    try:
+        # Initialize components
+        port = "/dev/ttyACM0"
+        transport = SerialTransport(port=port)
+        printer = NiimbotPrint(transport=transport)
+        supa_api = SupaDB(DATABASE_URL, JWT)
+        service = RealtimeService(DATABASE_URL, JWT)
 
-    handler = LaundryHandler(
-        supa_api=supa_api,
-        service=service,
-        label_printer=printer
-    )
+        handler = LaundryHandler(
+            supa_api=supa_api,
+            service=service,
+            label_printer=printer
+        )
 
-    await handler.start()
+        await handler.start()
+    except Exception as e:
+        logging.error(f"Main process error: {str(e)}")
+    finally:
+        if transport:
+            transport.close()
 
 
 if __name__ == "__main__":
