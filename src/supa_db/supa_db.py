@@ -1,13 +1,10 @@
 import logging
-
 from supabase import create_client
-
-from src.supa_realtime.config import DATABASE_URL, JWT
 
 
 class SupaDB:
-    def __init__(self):
-        self.client = create_client(DATABASE_URL, JWT)
+    def __init__(self, database_url: str, jwt: str):
+        self.client = create_client(database_url, jwt)
 
     def get_user_name(self, user_id: str) -> str:
         try:

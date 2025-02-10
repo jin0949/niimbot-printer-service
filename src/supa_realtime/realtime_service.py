@@ -3,15 +3,20 @@ from realtime import AsyncRealtimeClient
 import logging
 from typing import Callable
 
+
 class RealtimeService:
-    def __init__(self, url: str, jwt: str, callback: Callable):
+    def __init__(self, url: str, jwt: str):
         self.url = url
         self.jwt = jwt
-        self.callback = callback
+        self.callback = None
         self._socket = None
 
+    def set_callback(self, callback: Callable):
+        self.callback = callback
+
     def _callback_wrapper(self, payload):
-        asyncio.create_task(self.callback(payload))
+        if self.callback:
+            asyncio.create_task(self.callback(payload))
 
     async def start_listening(self):
         self._socket = AsyncRealtimeClient(f"{self.url}/realtime/v1", self.jwt, auto_reconnect=True)
