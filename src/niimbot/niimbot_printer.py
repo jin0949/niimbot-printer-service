@@ -33,9 +33,9 @@ def log_buffer(prefix: str, buff: bytes):
 
 
 class NiimbotPrint:
-    def __init__(self, density=5, label_type=1, port="auto"):
+    def __init__(self, density=5, label_type=1):
         try:
-            self._transport = SerialTransport(port=port)
+            self._transport = SerialTransport(port="auto")
             self._packetbuf = bytearray()
 
             assert 1 <= density <= 5, "Density must be between 1 and 5"

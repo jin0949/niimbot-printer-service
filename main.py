@@ -2,6 +2,8 @@ import asyncio
 import logging
 import json
 
+from setproctitle import setproctitle
+
 from src.niimbot.niimbot_printer import NiimbotPrint
 from src.qr_generator.layout import ImageLayout
 from src.supa_db.supa_db import SupaDB
@@ -13,7 +15,8 @@ class LaundryHandler:
     def __init__(self):
         self.supa_api = SupaDB()
         self.service = RealtimeService(DATABASE_URL, JWT, self.handle_change)
-        self.label_printer = NiimbotPrint(port="auto")
+        self.label_printer = NiimbotPrint(port="/dev/ttyACM0")
+
 
     async def handle_change(self, payload):
         logging.info(f"Database change detected: {payload}")
@@ -39,6 +42,7 @@ class LaundryHandler:
 
 
 async def main():
+    setproctitle("printer-service")
     logging.basicConfig(level=logging.INFO)
     handler = LaundryHandler()
     await handler.start()
