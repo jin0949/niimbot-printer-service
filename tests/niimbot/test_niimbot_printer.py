@@ -1,5 +1,3 @@
-import time
-
 import pytest
 from PIL import Image
 
@@ -84,23 +82,13 @@ def test_print_flow(printer):
     status = printer.get_print_status()
     assert status is not None
 
+
 @pytest.mark.print
 def test_print(printer):
     img = Image.open("./img/test_print.png")
-    height, width = 240, 320
-    percentage = 100
 
     try:
-        assert printer.start_print(), "Failed to start print"
-        assert printer.allow_print_clear(), "Failed to allow print clear"
-        assert printer.start_page_print(), "Failed to start page print"
-        assert printer.set_dimension(height, width), "Failed to set dimensions"
-        printer.receive_image(img)
-        assert printer.end_page_print(), "Failed to end page print"
-
-        while (status := printer.get_print_status()) and status['progress1'] != percentage:
-            time.sleep(0.01)
-        assert printer.end_print(), "Failed to end print"
+        printer.print_image(img)
 
     except Exception as e:
         raise RuntimeError(f"Print test failed: {str(e)}") from e
