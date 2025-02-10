@@ -13,7 +13,7 @@ class LaundryHandler:
     def __init__(self):
         self.supa_api = SupaDB()
         self.service = RealtimeService(DATABASE_URL, JWT, self.handle_change)
-        self.label_printer = NiimbotPrint()
+        self.label_printer = NiimbotPrint(port="auto")
 
     async def handle_change(self, payload):
         logging.info(f"Database change detected: {payload}")
