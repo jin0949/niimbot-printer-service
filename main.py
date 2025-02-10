@@ -34,8 +34,6 @@ class LaundryHandler:
             # printer 출력
             self.label_printer.print_image(image)
 
-
-
     async def start(self):
         await self.service.start_listening()
 
