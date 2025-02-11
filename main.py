@@ -17,7 +17,7 @@ SERIAL_PORT = "/dev/ttyACM0"
 SERVICE_NAME = "printer-service"
 
 # Set log Level
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.ERROR
 
 # Load environment variables
 load_dotenv()
