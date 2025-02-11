@@ -33,8 +33,8 @@ def log_buffer(prefix: str, buff: bytes):
 
 
 class NiimbotPrint:
-    def __init__(self, density=5, label_type=1, transport: SerialTransport = None):
-        self._transport = transport
+    def __init__(self, density=5, label_type=1, port="auto"):
+        self._transport = SerialTransport(port)
         self._packetbuf = bytearray()
 
         assert 1 <= density <= 5, "Density must be between 1 and 5"
@@ -43,32 +43,74 @@ class NiimbotPrint:
         self.set_label_density(density)
         self.set_label_type(label_type)
 
-        image_path = os.path.join(os.path.dirname(__file__), 'sample.png')
-        self.sample_image = Image.open(image_path)
-
-        # 연결 시 첫 출력 안되는 버그 있어서 초기화 할때 출력
-        self.print_image(image=self.sample_image)
-
         logging.info("Printer initialized successfully")
 
+    def check_printer_connection(self):
+        """프린터 연결 상태를 확인하고 필요시 재연결을 시도합니다."""
+        try:
+            status = self.heartbeat()
+            if status is None:
+                # 재연결 시도
+                self._transport.reconnect()
+                time.sleep(1)
+                status = self.heartbeat()
+                if status is None:
+                    raise Exception("프린터 연결이 끊어졌습니다")
+            return True
+        except Exception as e:
+            raise Exception(f"프린터 통신 오류: {str(e)}")
+
+    def check_printer_status(self):
+        """프린터 상태를 체크하고 문제가 있으면 예외를 발생시킵니다."""
+        # 먼저 연결 상태 확인
+        self.check_printer_connection()
+
+        # 하트비트로 기본 상태 체크
+        heartbeat = self.heartbeat()
+        print_status = self.get_print_status()
+
+        if heartbeat['closingstate'] != 0:
+            raise Exception("프린터 커버가 열려있습니다")
+
+        if heartbeat['powerlevel'] is not None and heartbeat['powerlevel'] < 1:
+            raise Exception("프린터 배터리가 부족합니다")
+
+        # 프린트 상태 체크 - 용지 걸림이나 다른 문제면 바로 에러
+        if print_status and not print_status['isEnabled']:
+            raise Exception("프린터가 사용 불가능한 상태입니다 (용지 걸림 또는 다른 오류)")
+
     def print_image(self, image: Image.Image):
-        # 프린트 시작
-        self.start_print()
-        self.allow_print_clear()
-        self.start_page_print()
+        try:
+            # 프린터 상태 종합 체크
+            self.check_printer_status()
 
-        # 이미지 설정 및 전송
-        self.set_dimension(image.height, image.width)
-        self.receive_image(image)
+            # 정상이면 프린트 진행
+            self.start_print()
+            self.allow_print_clear()
+            self.start_page_print()
 
-        # 프린트 종료
-        self.end_page_print()
+            self.set_dimension(image.height, image.width)
+            self.receive_image(image)
 
-        # 프린트 완료 대기
-        while (status := self.get_print_status()) and status['progress1'] != 100:
-            time.sleep(0.01)
+            self.end_page_print()
 
-        self.end_print()
+            # 프린트 진행 상태 모니터링
+            timeout = time.time() + 30  # 30초 타임아웃
+            while (status := self.get_print_status()) and status['progress1'] != 100:
+                if time.time() > timeout:
+                    raise Exception("프린트 작업 타임아웃")
+                if status and not status['isEnabled']:
+                    raise Exception("프린터가 사용 불가능한 상태입니다")
+                time.sleep(0.01)
+
+            self.end_print()
+
+        except Exception as e:
+            try:
+                self.end_print()
+            except:
+                pass
+            raise Exception(f"프린트 작업 실패: {str(e)}")
 
     def _recv(self):
         packets = []
