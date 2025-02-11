@@ -1,4 +1,6 @@
 import asyncio
+import logging
+
 from realtime import AsyncRealtimeClient
 import json
 
@@ -25,6 +27,8 @@ class RealtimeService:
         requested_by = record['requested_by']
         user_name = self.supa_api.get_user_name(requested_by)
 
+        logging.info(f"Print request received - User: {user_name}, Amount: {amount}")
+
         for i in range(amount):
             number = i + 1
             data = {
@@ -34,6 +38,8 @@ class RealtimeService:
             json_data = json.dumps(data)
             image = ImageLayout.create_qr_image(json_data, f"{user_name} {number}")
             self.printer.print_image(image)
+
+        logging.info(f"Print completed - User: {user_name}, Amount: {amount}")
 
     async def start_listening(self):
         self._socket = AsyncRealtimeClient(f"{self.url}/realtime/v1", self.jwt, auto_reconnect=True)
@@ -47,6 +53,7 @@ class RealtimeService:
             callback=self._callback_wrapper
         ).subscribe()
 
+        logging.info("Realtime service started successfully")
         await self._socket.listen()
 
     async def test_connection(self):
