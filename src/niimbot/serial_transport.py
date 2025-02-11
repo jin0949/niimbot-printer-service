@@ -24,3 +24,11 @@ class SerialTransport:
 
     def write(self, data: bytes):
         return self._serial.write(data)
+
+    def close(self):
+        if self._serial and self._serial.is_open:
+            self._serial.close()
+
+    def open(self):
+        if self._serial and not self._serial.is_open:
+            self._serial.open()
