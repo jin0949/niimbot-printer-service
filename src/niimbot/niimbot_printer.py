@@ -34,52 +34,41 @@ def log_buffer(prefix: str, buff: bytes):
 
 class NiimbotPrint:
     def __init__(self, density=5, label_type=1, transport: SerialTransport = None):
-        try:
-            self._transport = transport
-            self._packetbuf = bytearray()
+        self._transport = transport
+        self._packetbuf = bytearray()
 
-            assert 1 <= density <= 5, "Density must be between 1 and 5"
-            assert 1 <= label_type <= 3, "Label type must be between 1 and 3"
+        assert 1 <= density <= 5, "Density must be between 1 and 5"
+        assert 1 <= label_type <= 3, "Label type must be between 1 and 3"
 
-            assert self.set_label_density(density), "Failed to set label density"
-            assert self.set_label_type(label_type), "Failed to set label type"
+        self.set_label_density(density)
+        self.set_label_type(label_type)
 
-            image_path = os.path.join(os.path.dirname(__file__), 'sample.png')
-            self.sample_image = Image.open(image_path)
+        image_path = os.path.join(os.path.dirname(__file__), 'sample.png')
+        self.sample_image = Image.open(image_path)
 
-            # 연결 시 첫 출력 안되는 버그 있어서 초기화 할때 2장 출력
-            for i in range(2):
-                self.print_image(image=self.sample_image)
+        # 연결 시 첫 출력 안되는 버그 있어서 초기화 할때 출력
+        self.print_image(image=self.sample_image)
 
-            logging.info("Printer initialized successfully")
-
-        except Exception as e:
-            logging.error(f"Failed to initialize printer: {str(e)}")
-            raise RuntimeError(f"Printer initialization failed: {str(e)}") from e
+        logging.info("Printer initialized successfully")
 
     def print_image(self, image: Image.Image):
-        try:
-            # 프린트 시작
-            assert self.start_print(), "Failed to start print"
-            assert self.allow_print_clear(), "Failed to allow print clear"
-            assert self.start_page_print(), "Failed to start page print"
+        # 프린트 시작
+        self.start_print()
+        self.allow_print_clear()
+        self.start_page_print()
 
-            # 이미지 설정 및 전송
-            assert self.set_dimension(image.height, image.width), "Failed to set dimensions"
-            self.receive_image(image)
+        # 이미지 설정 및 전송
+        self.set_dimension(image.height, image.width)
+        self.receive_image(image)
 
-            # 프린트 종료
-            assert self.end_page_print(), "Failed to end page print"
+        # 프린트 종료
+        self.end_page_print()
 
-            # 프린트 완료 대기
-            while (status := self.get_print_status()) and status['progress1'] != 100:
-                time.sleep(0.1)
+        # 프린트 완료 대기
+        while (status := self.get_print_status()) and status['progress1'] != 100:
+            time.sleep(0.01)
 
-            assert self.end_print(), "Failed to end print"
-
-        except Exception as e:
-            logging.error(f"Print failed: {str(e)}")
-            raise RuntimeError(f"Print failed: {str(e)}") from e
+        self.end_print()
 
     def _recv(self):
         packets = []
