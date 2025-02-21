@@ -26,6 +26,3 @@ def create_test_print():
     draw.rectangle([(10, 10), (310, 230)], outline='black', width=2)
     image.save('./sample.png')
     return image
-
-
-create_test_print()
