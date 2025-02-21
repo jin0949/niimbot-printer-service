@@ -45,71 +45,130 @@ class NiimbotPrint:
         logging.info("Printer initialized successfully")
 
     def check_printer_connection(self):
-        """프린터 연결 상태를 확인하고 필요시 재연결을 시도합니다."""
+        """Check printer connection status and attempt reconnection if necessary."""
+        logging.info("Initiating printer connection check")
+
         try:
             status = self.heartbeat()
+
             if status is None:
-                # 재연결 시도
+                logging.warning("Printer connection lost, attempting reconnection")
+
+                # Attempt reconnection
                 self._transport.reconnect()
+                logging.info("Waiting for printer to initialize after reconnection")
                 time.sleep(1)
+
+                # Verify reconnection
                 status = self.heartbeat()
                 if status is None:
-                    raise Exception("프린터 연결이 끊어졌습니다")
+                    logging.error("Printer reconnection failed - No response received")
+                    raise Exception("Printer connection failed after reconnection attempt")
+
+                logging.info("Printer reconnection successful")
+                return True
+
+            logging.debug("Printer connection check: OK")
             return True
+
         except Exception as e:
-            raise Exception(f"프린터 통신 오류: {str(e)}")
+            error_msg = str(e)
+            logging.error(f"Printer communication error: {error_msg}")
+            raise Exception(f"Printer communication error: {error_msg}")
 
     def check_printer_status(self):
-        """프린터 상태를 체크하고 문제가 있으면 예외를 발생시킵니다."""
-        # 먼저 연결 상태 확인
-        self.check_printer_connection()
+        """Check printer status and raise exceptions for any detected issues."""
+        logging.info("Starting comprehensive printer status check")
 
-        # 하트비트로 기본 상태 체크
-        heartbeat = self.heartbeat()
-        print_status = self.get_print_status()
+        try:
+            # Check connection first
+            logging.debug("Verifying printer connection")
+            self.check_printer_connection()
 
-        if heartbeat['closingstate'] != 0:
-            raise Exception("프린터 커버가 열려있습니다")
+            # Get status information
+            logging.debug("Retrieving printer heartbeat and status")
+            heartbeat = self.heartbeat()
+            print_status = self.get_print_status()
 
-        if heartbeat['powerlevel'] is not None and heartbeat['powerlevel'] < 1:
-            raise Exception("프린터 배터리가 부족합니다")
+            # Check cover status
+            if heartbeat['closingstate'] != 0:
+                logging.error("Printer error: Cover is open")
+                raise Exception("Printer cover is open")
 
-        # 프린트 상태 체크 - 용지 걸림이나 다른 문제면 바로 에러
-        if print_status and not print_status['isEnabled']:
-            raise Exception("프린터가 사용 불가능한 상태입니다 (용지 걸림 또는 다른 오류)")
+            # Check battery level
+            if heartbeat['powerlevel'] is not None and heartbeat['powerlevel'] < 1:
+                logging.error(f"Printer error: Low battery (Level: {heartbeat['powerlevel']})")
+                raise Exception("Printer battery is too low")
+
+            # Check print status for paper jam or other issues
+            if print_status and not print_status['isEnabled']:
+                logging.error("Printer error: Device is disabled (paper jam or other error)")
+                raise Exception("Printer is in an unusable state (paper jam or other error)")
+
+            logging.info("Printer status check completed successfully")
+            return True
+
+        except Exception as e:
+            error_msg = str(e)
+            logging.error(f"Printer status check failed: {error_msg}")
+            raise Exception(f"Printer status error: {error_msg}")
 
     def print_image(self, image: Image.Image):
+        """Print the provided image using the thermal printer."""
+        logging.info("Starting new print job")
+
         try:
-            # 프린터 상태 종합 체크
+            # Comprehensive printer status check
+            logging.debug("Performing initial printer status check")
             self.check_printer_status()
 
-            # 정상이면 프린트 진행
+            # Initialize print sequence
+            logging.debug("Initializing print sequence")
             self.start_print()
             self.allow_print_clear()
             self.start_page_print()
 
+            # Configure and send image
+            logging.debug(f"Setting image dimensions - Height: {image.height}, Width: {image.width}")
             self.set_dimension(image.height, image.width)
+
+            logging.debug("Sending image data to printer")
             self.receive_image(image)
 
+            logging.debug("Finalizing page print")
             self.end_page_print()
 
-            # 프린트 진행 상태 모니터링
-            timeout = time.time() + 30  # 30초 타임아웃
+            # Monitor print progress
+            timeout = time.time() + 30  # 30-second timeout
+            logging.info("Monitoring print progress")
+
             while (status := self.get_print_status()) and status['progress1'] != 100:
                 if time.time() > timeout:
-                    raise Exception("프린트 작업 타임아웃")
+                    logging.error("Print job timed out after 30 seconds")
+                    raise Exception("Print job timeout")
+
                 if status and not status['isEnabled']:
-                    raise Exception("프린터가 사용 불가능한 상태입니다")
+                    logging.error("Printer became disabled during print job")
+                    raise Exception("Printer entered unusable state during printing")
+
                 time.sleep(0.01)
 
+            logging.debug("Completing print job")
             self.end_print()
 
+            logging.info("Print job completed successfully")
+
         except Exception as e:
+            error_msg = str(e)
+            logging.error(f"Print job failed: {error_msg}")
+
             try:
+                logging.debug("Attempting to clean up failed print job")
                 self.end_print()
-            except:
-                pass
-            raise Exception(f"프린트 작업 실패: {str(e)}")
+            except Exception as cleanup_error:
+                logging.warning(f"Failed to clean up print job: {str(cleanup_error)}")
+
+            raise Exception(f"Print job failed: {error_msg}")
 
     def _recv(self):
         packets = []
