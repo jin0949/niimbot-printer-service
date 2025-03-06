@@ -103,9 +103,8 @@ class RealtimeService:
                 try:
                     self.printer.check_printer_status()
                     number = i + 1
-                    data = {"id": laundry_id, "number": number}
-                    json_data = json.dumps(data)
-                    image = ImageLayout.create_qr_image(json_data, f"{user_name} {number}")
+                    data = f"{laundry_id}.{number}"
+                    image = ImageLayout.create_qr_image(data, f"{user_name} {number}")
                     self.printer.print_image(image)
                     logging.info(f"Print success - User: {user_name}, Number: {number}/{amount}")
 
